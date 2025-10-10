@@ -2,3 +2,7 @@ omnivla-finetuned-cast/
 omnivla-original/
 OmniVLA.egg-info/
 prismatic/vla/datasets/sampler/
+# Ignore all __pycache__ directories everywhere
+**/__pycache__/
+# Ignore all wandb directories everywhere
+**/wandb/
