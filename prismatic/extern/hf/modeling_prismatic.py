@@ -978,97 +978,24 @@ class PrismaticForConditionalGeneration_MMNv1(PrismaticPreTrainedModel):
                 modality_pose = True 
                 modality_sate = False   
 
-            """
-            if modality_id[ib] == 0: #goal image only
-                modality_lan = False
-                modality_img = False
-                modality_pose = False 
-                modality_sate = True           
-            elif modality_id[ib] == 1: #language only
-                modality_lan = False
-                modality_img = False
-                modality_pose = True
-                modality_sate = False
-            elif modality_id[ib] == 2: #language only
-                modality_lan = False
-                modality_img = False
-                modality_pose = True 
-                modality_sate = True   
-            elif modality_id[ib] == 3: #goal image only
-                modality_lan = False
-                modality_img = True
-                modality_pose = False 
-                modality_sate = True           
-            elif modality_id[ib] == 4: #language only
-                modality_lan = False
-                modality_img = True
-                modality_pose = True
-                modality_sate = False
-            elif modality_id[ib] == 5: #language only
-                modality_lan = False
-                modality_img = True
-                modality_pose = True 
-                modality_sate = True                           
-            elif modality_id[ib] == 6: #goal image only
-                modality_lan = False
-                modality_img = True
-                modality_pose = False 
-                modality_sate = False           
-            elif modality_id[ib] == 7: #language only
-                modality_lan = True
-                modality_img = False
-                modality_pose = False
-                modality_sate = False
-            elif modality_id[ib] == 8: #language only
-                modality_lan = True
-                modality_img = False
-                modality_pose = True 
-                modality_sate = False   
-            """
-            #lan_attention_mask = torch.full((1, projected_patch_embeddings.shape[1]), fill_value=modality_lan, dtype=attention_mask.dtype, device=attention_mask.device)
-            #lan_attention_mask = torch.full((1, projected_patch_embeddings.shape[1]), fill_value=modality_img, dtype=attention_mask.dtype, device=attention_mask.device)
-             
             obimg_attention_mask = torch.full((1, 256), fill_value=True, dtype=attention_mask.dtype, device=attention_mask.device)
             img_attention_mask = torch.full((1, 256), fill_value=modality_img, dtype=attention_mask.dtype, device=attention_mask.device)
             sate_attention_mask = torch.full((1, 512), fill_value=modality_sate, dtype=attention_mask.dtype, device=attention_mask.device)
-            pose_attention_mask = torch.full((1, 1), fill_value=modality_pose, dtype=attention_mask.dtype, device=attention_mask.device)
-            
-            #img_attention_mask = torch.full((1, 1), fill_value=modality_img, dtype=attention_mask.dtype, device=attention_mask.device)
-            #pose_attention_mask = torch.full((1, 1), fill_value=modality_pose, dtype=attention_mask.dtype, device=attention_mask.device)
-            #sate_attention_mask = torch.full((1, 1), fill_value=modality_sate, dtype=attention_mask.dtype, device=attention_mask.device) 
-            #obs_attention_mask = torch.full((1, self.context_size+1), fill_value=True, dtype=attention_mask.dtype, device=attention_mask.device)           
-            #projected_patch_attention_mask_b = torch.cat((obimg_attention_mask, img_attention_mask, sate_attention_mask, pose_attention_mask), axis=1)
+            pose_attention_mask = torch.full((1, 1), fill_value=modality_pose, dtype=attention_mask.dtype, device=attention_mask.device)     
             projected_patch_attention_mask_b = torch.cat((obimg_attention_mask, img_attention_mask, pose_attention_mask), axis=1)
-            #attention_mask_lan_prompt_b = torch.full((1, attention_mask.shape[1]-1), fill_value=modality_lan, dtype=attention_mask.dtype, device=attention_mask.device)
-            """
-            if modality_lan:
-                attention_mask_lan_prompt_b = attention_mask[ib,1:].unsqueeze(0)
-            else:
-                attention_mask_lan_prompt_b = (attention_mask_label[ib,1:] & attention_mask[ib,1:]).unsqueeze(0)
-            """
             attention_mask_lan_prompt_b = attention_mask[ib,1:].unsqueeze(0)
-            #print("attention_mask[ib,1:]", attention_mask[ib,1:])
-            #print("attention_mask_label[ib,1:]", attention_mask_label[ib,1:])
-            #print("attention_mask_lan_prompt_b", attention_mask_lan_prompt_b)
             projected_patch_attention_mask.append(projected_patch_attention_mask_b)
             attention_mask_lan_prompt.append(attention_mask_lan_prompt_b)
             
         projected_patch_attention_mask = torch.cat(projected_patch_attention_mask, axis=0)            
         attention_mask_lan_prompt = torch.cat(attention_mask_lan_prompt, axis=0)
         
-        #print("input_embeddings[:, :1, :]", input_embeddings[:, :1, :])
-        # Build multimodal embeddings & attention mask; insert embeddings after <BOS> token (1:)
         multimodal_embeddings = torch.cat(
             [input_embeddings[:, :1, :], projected_patch_embeddings, input_embeddings[:, 1:, :]], dim=1
         )
-        #print("projected_patch_embeddings", projected_patch_embeddings.size())
 
         multimodal_attention_mask = None
         if attention_mask is not None:
-            #print(attention_mask_lan_prompt.size(), attention_mask[:, 1:].size())
-            #multimodal_attention_mask = torch.cat(
-            #    [attention_mask[:, :1], projected_patch_attention_mask, attention_mask[:, 1:]], dim=1
-            #)
             multimodal_attention_mask = torch.cat(
                 [attention_mask[:, :1], projected_patch_attention_mask, attention_mask_lan_prompt], dim=1
             )
@@ -1169,73 +1096,16 @@ class PrismaticForConditionalGeneration_MMNv1(PrismaticPreTrainedModel):
         # === Handle Multimodal Forward ===
         elif (input_ids.shape[0] == pixel_values.shape[0]) or (inputs_embeds.shape[0] == pixel_values.shape[0]):
             assert past_key_values is None, "Unexpected key `past_key_values` provided during multimodal forward!"
-            #print("cccc")
             # Get input embeddings (from language model embeddings)
             input_embeddings = self.get_input_embeddings()(input_ids)  # (B, seq_len, D)
-            #print("input_embeddings", input_embeddings.size())
-            #if input_embeddings.size()[1] > 50:
-            #    input_embeddings = input_embeddings[:,0:50]
-            #print("after input_embeddings", input_embeddings.size())
-            # Extract action masks
             all_actions_mask = self._process_action_masks(labels)
-            #print("all_actions_mask", all_actions_mask)
-            #print("all_actions_mask", all_actions_mask.size())
-            #print("input_embeddings[~all_actions_mask]", input_embeddings[~all_actions_mask].size())
             # Extract the language portion of the input embeddings (i.e. remove the action tokens portion)
             language_embeddings = input_embeddings[~all_actions_mask].reshape(
                 input_embeddings.shape[0], -1, input_embeddings.shape[2]
             )  # (B, lang_seq_len, llm_dim)
-            #print("language_embeddings", language_embeddings.size())
 
-            """
-            # Get goal-conditioned features
-            goal_encoding_img = self.goal_encoder_img.extract_features(pixel_values_goal)
-            goal_encoding_img = self.goal_encoder_img._avg_pooling(goal_encoding_img)
-            if self.goal_encoder_img._global_params.include_top:
-                goal_encoding_img = goal_encoding_img.flatten(start_dim=1)
-                goal_encoding_img = self.goal_encoder_img._dropout(goal_encoding_img)
-            # currently, the size of goal_encoding is [batch_size, num_goal_features]
-            goal_encoding_img = self.compress_goal_enc_img(goal_encoding_img)            
-            #if len(goal_encoding_img.shape) == 2:
-            #    goal_encoding_img = goal_encoding_img
-            #print(goal_encoding_img.size())            
-            #goal_encoding_img_4096 = goal_encoding_img.unsqueeze(1).repeat(1,1,4)
-            goal_encoding_img_4096 = self.project_img_feat(goal_encoding_img).unsqueeze(1)            
-            #print(goal_encoding_img_4096.size()) 
-           
-            # Get satellite image-conditioned features
-            map_encoding = self.goal_encoder.extract_features(map_images).unsqueeze(1)
-            map_encoding = self.goal_encoder._avg_pooling(map_encoding)
-            if self.goal_encoder._global_params.include_top:
-                map_encoding = map_encoding.flatten(start_dim=1)
-                map_encoding = self.goal_encoder._dropout(map_encoding)
-            map_encoding = self.compress_obs_enc_map(map_encoding)
-            #if len(map_encoding.shape) == 2:                
-            #   map_encoding = map_encoding
-            #map_encoding_4096 = map_encoding.unsqueeze(1).repeat(1,1,4)            
-            map_encoding_4096 = self.project_sate_feat(map_encoding).unsqueeze(1)   
-                                   
-            # Get pose-conditioned features
-            goal_encoding_pose_4096 = self.project_pose_feat(self.local_goal(goal_pose)).unsqueeze(1)
-            #goal_encoding_pose_4096 = self.local_goal(goal_pose).unsqueeze(1).repeat(1,1,4)
-            #print("goal_encoding_pose_4096", goal_encoding_pose_4096.size())
-                        
-            # Get image history features
-            img_hist = torch.split(img_hist, 3, dim=1)
-            img_hist = torch.concat(img_hist, dim=0)
-            obs_encoding = self.obs_encoder.extract_features(img_hist)
-            obs_encoding = self.obs_encoder._avg_pooling(obs_encoding)
-            if self.obs_encoder._global_params.include_top:
-                obs_encoding = obs_encoding.flatten(start_dim=1)
-                obs_encoding = self.obs_encoder._dropout(obs_encoding)
-            obs_encoding = self.compress_obs_enc(obs_encoding)
-            obs_encoding = obs_encoding.reshape((self.context_size+1, -1, self.goal_encoding_size))
-            obs_encoding_4096 = torch.transpose(obs_encoding, 0, 1).repeat(1,1,4)
-            #print("obs_encoding", obs_encoding.size())
-            """            
             # Get visual features
             projected_patch_embeddings = self._process_vision_features(pixel_values, language_embeddings, use_film)
-            #print("projected_patch_embeddings", projected_patch_embeddings.size())
 
             # Add proprioceptive state if provided
             projected_patch_embeddings = self._process_proprio_features(
@@ -1251,7 +1121,6 @@ class PrismaticForConditionalGeneration_MMNv1(PrismaticPreTrainedModel):
 
             # Process action embeddings
             if noisy_actions is not None:
-                #print("aaaa")
                 # Get mask corresponding to all action tokens
                 all_actions_mask = self._process_action_masks(labels)
 
@@ -1267,37 +1136,19 @@ class PrismaticForConditionalGeneration_MMNv1(PrismaticPreTrainedModel):
                 input_embeddings = self._replace_input_embeddings(
                     input_embeddings, all_actions_mask, noisy_action_features
                 )
-            else:
-                #print("bbbb")            
+            else: 
                 # Replace the embeddings of the action tokens with zeros
                 # (Later on, the positional embeddings will be added to them)
                 all_actions_mask = all_actions_mask.unsqueeze(-1)  # (B, seq_len, 1)
-                #print("all_actions_mask", all_actions_mask[1])
-                #print(input_embeddings.device, all_actions_mask.device)
                 input_embeddings = input_embeddings * ~all_actions_mask
-                #print("input_embeddings", input_embeddings[1])       
-                #print("input_embeddings-5", input_embeddings[1][-5])     
-                #print("input_embeddings-4", input_embeddings[1][-4])                                              
-                #print("input_embeddings", input_embeddings)
-                #print("all_actions_mask", all_actions_mask)
                 
             # Build multimodal embeddings & attention mask
-            #multimodal_embeddings, multimodal_attention_mask = self._build_multimodal_attention_MMN(
-            #    input_embeddings, projected_patch_embeddings, goal_encoding_img_4096, goal_encoding_img_4096, attention_mask, modality_id
-            #)
             multimodal_embeddings, multimodal_attention_mask = self._build_multimodal_attention_MMN(
                 input_embeddings, projected_patch_embeddings, attention_mask, attention_mask_label, modality_id
             )            
-            #print("multimodal_embeddings", multimodal_embeddings.size())
-            #print(multimodal_attention_mask)
-            #print(multimodal_attention_mask.size())
             # Build labels for multimodal sequence if needed
             multimodal_labels = self._build_multimodal_labels(labels, projected_patch_embeddings)
-            #print("multimodal_labels", multimodal_labels.size())
-
-            #print("output_attentions", output_attentions)
-            #print("output_hidden_states", output_hidden_states)      
-            #print("return_dict", return_dict)      
+    
             # Dispatch to language model
             language_model_output = self.language_model(
                 input_ids=None,

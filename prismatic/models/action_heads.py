@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 #from diffusers.schedulers.scheduling_ddim import DDIMScheduler
-from prismatic.vla.constants import ACTION_DIM, ACTION_TOKEN_BEGIN_IDX, IGNORE_INDEX, NUM_ACTIONS_CHUNK, PROPRIO_DIM, STOP_INDEX
+from prismatic.vla.constants import ACTION_DIM, ACTION_TOKEN_BEGIN_IDX, IGNORE_INDEX, NUM_ACTIONS_CHUNK, STOP_INDEX
 
 
 class SinusoidalPositionalEncoding(nn.Module):
@@ -72,16 +72,12 @@ class MLPResNet(nn.Module):
     def forward(self, x):
         # x: (batch_size, input_dim)
         x = self.layer_norm1(x)  # shape: (batch_size, input_dim)
-        #print("a", x.size())
-        x = self.fc1(x)  # shape: (batch_size, hidden_dim)
-        #print("b", x.size())        
+        x = self.fc1(x)  # shape: (batch_size, hidden_dim)     
         x = self.relu(x)  # shape: (batch_size, hidden_dim)
         for block in self.mlp_resnet_blocks:
             x = block(x)  # shape: (batch_size, hidden_dim)
-        x = self.layer_norm2(x)  # shape: (batch_size, hidden_dim)
-        #print("c", x.size())        
-        x = self.fc2(x)  # shape: (batch_size, output_dim)
-        #print("d", x.size())        
+        x = self.layer_norm2(x)  # shape: (batch_size, hidden_dim)    
+        x = self.fc2(x)  # shape: (batch_size, output_dim)    
         return x
 
 class MLPResNet_idcat(nn.Module):
@@ -100,44 +96,14 @@ class MLPResNet_idcat(nn.Module):
     def forward(self, x, taskid):
         # x: (batch_size, input_dim)
         x = self.layer_norm1(x)  # shape: (batch_size, input_dim)
-        #print("a", x.size())
-        x = torch.cat((x, taskid.unsqueeze(1).unsqueeze(2).repeat(1,8,1)), axis=2)
-        #print("ab", x.size())        
-        x = self.fc1(x)  # shape: (batch_size, hidden_dim)
-        #print("b", x.size())        
+        x = torch.cat((x, taskid.unsqueeze(1).unsqueeze(2).repeat(1,8,1)), axis=2)     
+        x = self.fc1(x)  # shape: (batch_size, hidden_dim) 
         x = self.relu(x)  # shape: (batch_size, hidden_dim)
         for block in self.mlp_resnet_blocks:
             x = block(x)  # shape: (batch_size, hidden_dim)
-        x = self.layer_norm2(x)  # shape: (batch_size, hidden_dim)
-        #print("c", x.size())        
-        x = self.fc2(x)  # shape: (batch_size, output_dim)
-        #print("d", x.size())        
+        x = self.layer_norm2(x)  # shape: (batch_size, hidden_dim)    
+        x = self.fc2(x)  # shape: (batch_size, output_dim)       
         return x
-
-class L1RegressionActionHead(nn.Module):
-    """Simple MLP-based action head that generates continuous actions via L1 regression."""
-    def __init__(
-        self,
-        input_dim=4096,
-        hidden_dim=4096,
-        action_dim=7,
-    ):
-        super().__init__()
-        self.action_dim = action_dim
-        self.model = MLPResNet(
-            num_blocks=2, input_dim=input_dim*ACTION_DIM, hidden_dim=hidden_dim, output_dim=action_dim
-        )
-
-    def predict_action(self, actions_hidden_states, taskid):
-        # actions_hidden_states: last hidden states of Transformer corresponding to action tokens in sequence
-        # - shape: (batch_size, chunk_len * action_dim, hidden_dim)
-        # ground_truth_actions: ground-truth actions
-        # - shape: (batch_size, chunk_len, action_dim)
-        batch_size = actions_hidden_states.shape[0]
-        device = actions_hidden_states.device
-        rearranged_actions_hidden_states = actions_hidden_states.reshape(batch_size, NUM_ACTIONS_CHUNK, -1)
-        action = self.model(rearranged_actions_hidden_states)
-        return action
 
 class L1RegressionActionHead_idcat(nn.Module):
     """Simple MLP-based action head that generates continuous actions via L1 regression."""
@@ -160,9 +126,7 @@ class L1RegressionActionHead_idcat(nn.Module):
         # - shape: (batch_size, chunk_len, action_dim)
         batch_size = actions_hidden_states.shape[0]
         device = actions_hidden_states.device
-        #print("actions_hidden_states", actions_hidden_states.size())
         rearranged_actions_hidden_states = actions_hidden_states.reshape(batch_size, NUM_ACTIONS_CHUNK, -1)
-        #print("rearranged_actions_hidden_states", rearranged_actions_hidden_states.size())
         action = self.model(rearranged_actions_hidden_states, taskid)
         return action
 
@@ -188,40 +152,6 @@ class L1RegressionDistHead(nn.Module):
         batch_size = actions_hidden_states.shape[0]
         device = actions_hidden_states.device
         rearranged_actions_hidden_states = actions_hidden_states.reshape(batch_size, NUM_ACTIONS_CHUNK, -1)
-        #print("rearranged_actions_hidden_states", rearranged_actions_hidden_states.size())
         dist = self.model(rearranged_actions_hidden_states).squeeze(2)
         dist_ave = dist.mean(dim=1, keepdim=False)
         return dist_ave
-
-class NoisePredictionModel(nn.Module):
-    """
-    Diffusion noise prediction model that takes an observation embedding (which fuses the
-    noisy action, diffusion timestep, and image-language observation embeddings) and
-    outputs a noise prediction.
-    """
-
-    def __init__(
-        self,
-        transformer_hidden_dim,  # Transformer hidden embedding size
-        hidden_dim,  # MLP hidden size
-        action_dim=7,  # action dimensionality
-    ):
-        super().__init__()
-        self.mlp_resnet = MLPResNet(
-            num_blocks=2,
-            input_dim=transformer_hidden_dim,
-            hidden_dim=hidden_dim,
-            output_dim=action_dim,
-        )
-
-    def forward(
-        self,
-        obs,
-    ):
-        # obs: observation embeddings to condition the generation on
-        # - shape: (batch_size, chunk_len, rearranged_hidden_dim=action_dim*hidden_dim)
-        #
-        # output: predicted noise
-        # - shape: (batch_size, action_dim)
-        output = self.mlp_resnet(obs)
-        return output

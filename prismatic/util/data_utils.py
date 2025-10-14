@@ -93,105 +93,6 @@ class PaddedCollatorForLanguageModeling:
         )
 
 @dataclass
-class PaddedCollatorForActionPrediction_Nav:
-    model_max_length: int
-    pad_token_id: int
-    padding_side: str = "right"
-    pixel_values_dtype: torch.dtype = torch.float32
-
-    def __call__(self, instances: Sequence[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
-        input_ids, labels = tuple([instance[key] for instance in instances] for key in ("input_ids", "labels"))
-        pixel_values = [instance["pixel_values"] for instance in instances]
-        if "dataset_name" in instances[0]:
-            dataset_names = [instance["dataset_name"] for instance in instances]
-        else:
-            dataset_names = None
-
-        # For now, we only support Tokenizers with `padding_side = "right"` during training
-        #   => Handle padding via RNN Utils => `pad_sequence`
-        assert self.padding_side == "right", f"Invalid Tokenizer `{self.padding_side = }`"
-        input_ids = pad_sequence(input_ids, batch_first=True, padding_value=self.pad_token_id)
-        labels = pad_sequence(labels, batch_first=True, padding_value=IGNORE_INDEX)
-
-        # Truncate (if necessary)
-        input_ids, labels = input_ids[:, : self.model_max_length], labels[:, : self.model_max_length]
-
-        # Get `attention_mask` by checking for `pad_token_id`
-        attention_mask = input_ids.ne(self.pad_token_id)
-
-        # [Contract] For VLA Training =>> No "Unimodal" Data!
-        assert all([pv is not None for pv in pixel_values]), "Invalid VLA Example with `pixel_values = None`!"
-
-        # Stack all `pixel_values` --> depending on type is torch.Tensor or Dict[str, torch.Tensor]
-        if isinstance(pixel_values[0], torch.Tensor):
-            if "pixel_values_wrist" in instances[0]:
-                pixel_values_wrist = [instance["pixel_values_wrist"] for instance in instances]
-                pixel_values = torch.cat((torch.stack(pixel_values), torch.stack(pixel_values_wrist)), dim=1)
-            else:
-                pixel_values = torch.stack(pixel_values)
-        else:
-            raise ValueError(f"Unsupported `pixel_values` type = {type(pixel_values)}")
-
-        # Stack all actions
-        actions = [torch.from_numpy(np.copy(instance["actions"])) for instance in instances]
-        actions = torch.stack(actions)
-
-        # Stack goal_pose
-        goal_pose = [torch.from_numpy(np.copy(instance["goal_pose"])) for instance in instances]
-        goal_pose = torch.stack(goal_pose)
-
-        # Stack obj_pose
-        obj_pose_norm = [torch.from_numpy(np.copy(instance["obj_pose_norm"])) for instance in instances]
-        obj_pose_norm = torch.stack(obj_pose_norm)
-
-        # Stack cur_image
-        cur_image_crop = [torch.from_numpy(np.copy(instance["cur_image_crop"])) for instance in instances]
-        cur_image_crop = torch.stack(cur_image_crop)
-
-        # Stack cur_image
-        cur_image = [torch.from_numpy(np.copy(instance["cur_image"])) for instance in instances]
-        cur_image = torch.stack(cur_image)
-
-        # Stack goal_image_crop
-        goal_image_crop = [torch.from_numpy(np.copy(instance["goal_image_crop"])) for instance in instances]
-        goal_image_crop = torch.stack(goal_image_crop)
-
-        # Stack goal_image_8
-        goal_image_8 = [torch.from_numpy(np.copy(instance["goal_image_8"])) for instance in instances]
-        goal_image_8 = torch.stack(goal_image_8)
-
-        # Stack temp_dist
-        temp_dist = [torch.from_numpy(np.copy(instance["temp_dist"])) for instance in instances]
-        temp_dist = torch.stack(temp_dist)
-        
-        # Stack proprio
-        if "proprio" in instances[0]:
-            proprio = [instance["proprio"] for instance in instances]
-            proprio = torch.Tensor(np.squeeze(np.stack(proprio)))
-        else:
-            proprio = None
-
-        output = dict(
-            pixel_values=pixel_values,
-            proprio=proprio,
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            labels=labels,
-            actions=actions,
-            goal_pose=goal_pose,
-            obj_pose_norm=obj_pose_norm,
-            cur_image_crop=cur_image_crop,
-            cur_image=cur_image,
-            goal_image_crop=goal_image_crop,
-            goal_image_8=goal_image_8,       
-            temp_dist=temp_dist,     
-            img_PIL=[instance["img_PIL"] for instance in instances],
-        )
-        if dataset_names is not None:
-            output["dataset_names"] = dataset_names
-        return output
-
-@dataclass
 class PaddedCollatorForActionPrediction_Nav_MMN:
     model_max_length: int
     pad_token_id: int
@@ -207,49 +108,23 @@ class PaddedCollatorForActionPrediction_Nav_MMN:
         else:
             dataset_names = None
 
-        #input_ids, labels = input_ids[:, : self.model_max_length], labels[:, : self.model_max_length]
-        #input_ids = [ids[:self.model_max_length] for ids in input_ids]
-        #labels = [lbl[:self.model_max_length] for lbl in labels]
-        # For now, we only support Tokenizers with `padding_side = "right"` during training
-        #   => Handle padding via RNN Utils => `pad_sequence`
-        """
-        assert self.padding_side == "right", f"Invalid Tokenizer `{self.padding_side = }`"
-        input_ids = pad_sequence(input_ids, batch_first=True, padding_value=self.pad_token_id)
-        labels = pad_sequence(labels, batch_first=True, padding_value=IGNORE_INDEX)
-
-        # Truncate (if necessary)
-        input_ids, labels = input_ids[:, : self.model_max_length], labels[:, : self.model_max_length]
-
-        # Get `attention_mask` by checking for `pad_token_id`
-        attention_mask = input_ids.ne(self.pad_token_id)
-        """
         # [Contract] For VLA Training =>> No "Unimodal" Data!
         assert all([pv is not None for pv in pixel_values]), "Invalid VLA Example with `pixel_values = None`!"
 
         # Stack all `pixel_values` --> depending on type is torch.Tensor or Dict[str, torch.Tensor]
         if isinstance(pixel_values[0], torch.Tensor):
-            if "pixel_values_wrist" in instances[0] and self.num_img > 1:
-                if self.num_img == 2:
-                    pixel_values_wrist = [instance["pixel_values_wrist"] for instance in instances]
-                    pixel_values = torch.cat((torch.stack(pixel_values), torch.stack(pixel_values_wrist)), dim=1)
-                    #pixel_values_curmap = [instance["pixel_values_curmap"] for instance in instances]
-                    #pixel_values_goalmap = [instance["pixel_values_goalmap"] for instance in instances]
-                    #pixel_values = torch.cat((torch.stack(pixel_values_curmap), torch.stack(pixel_values_goalmap)), dim=1)                      
-                else:
-                    pixel_values_wrist = [instance["pixel_values_wrist"] for instance in instances]
-                    pixel_values_curmap = [instance["pixel_values_curmap"] for instance in instances]
-                    pixel_values_goalmap = [instance["pixel_values_goalmap"] for instance in instances]
-                    pixel_values = torch.cat((torch.stack(pixel_values), torch.stack(pixel_values_wrist), torch.stack(pixel_values_curmap), torch.stack(pixel_values_goalmap)), dim=1)                
-            else:
-                pixel_values = torch.stack(pixel_values)
+            pixel_values_goal = [instance["pixel_values_goal"] for instance in instances]
+            pixel_values = torch.cat((torch.stack(pixel_values), torch.stack(pixel_values_goal)), dim=1)       
         else:
             raise ValueError(f"Unsupported `pixel_values` type = {type(pixel_values)}")
 
         # Stack all actions
         actions = [torch.from_numpy(np.copy(instance["actions"])) for instance in instances]
         actions = torch.stack(actions)
-        actions_nomad = [torch.from_numpy(np.copy(instance["actions_nomad"])) for instance in instances]
-        actions_nomad = torch.stack(actions_nomad)
+
+        # Stack actin mask
+        action_select_mask = [torch.from_numpy(np.copy(instance["action_select_mask"])) for instance in instances]
+        action_select_mask = torch.stack(action_select_mask)
 
         # Stack goal_pose
         goal_pose = [torch.from_numpy(np.copy(instance["goal_pose"])) for instance in instances]
@@ -260,16 +135,8 @@ class PaddedCollatorForActionPrediction_Nav_MMN:
         obj_pose_norm = torch.stack(obj_pose_norm)
 
         # Stack cur_image
-        cur_image_crop = [torch.from_numpy(np.copy(instance["cur_image_crop"])) for instance in instances]
-        cur_image_crop = torch.stack(cur_image_crop)
-
-        # Stack cur_image
         cur_image = [torch.from_numpy(np.copy(instance["cur_image"])) for instance in instances]
         cur_image = torch.stack(cur_image)
-
-        # Stack goal_image_crop
-        goal_image_crop = [torch.from_numpy(np.copy(instance["goal_image_crop"])) for instance in instances]
-        goal_image_crop = torch.stack(goal_image_crop)
 
         # Stack goal_image_8
         goal_image_8 = [torch.from_numpy(np.copy(instance["goal_image_8"])) for instance in instances]
@@ -278,14 +145,6 @@ class PaddedCollatorForActionPrediction_Nav_MMN:
         # Stack temp_dist
         temp_dist = [torch.from_numpy(np.copy(instance["temp_dist"])) for instance in instances]
         temp_dist = torch.stack(temp_dist)
-
-        # Stack current map image
-        cur_map_image = [torch.from_numpy(np.copy(instance["cur_map_image"])) for instance in instances]
-        cur_map_image = torch.stack(cur_map_image)
-
-        # Stack goal map image
-        goal_map_image = [torch.from_numpy(np.copy(instance["goal_map_image"])) for instance in instances]
-        goal_map_image = torch.stack(goal_map_image)
         
         # Stack proprio
         if "proprio" in instances[0]:
@@ -301,98 +160,16 @@ class PaddedCollatorForActionPrediction_Nav_MMN:
             input_ids=input_ids,
             #attention_mask=attention_mask,
             labels=labels,
+            modality_id = [instance["modality_id"] for instance in instances],
             actions=actions,
-            actions_nomad=actions_nomad,
+            action_select_mask=action_select_mask,
             goal_pose=goal_pose,
             obj_pose_norm=obj_pose_norm,
-            cur_image_crop=cur_image_crop,
             cur_image=cur_image,
-            goal_image_crop=goal_image_crop,
             goal_image_8=goal_image_8,       
             temp_dist=temp_dist,     
-            cur_map_image=cur_map_image,
-            goal_map_image=goal_map_image,
             img_PIL=[instance["img_PIL"] for instance in instances],
-        )
-        if dataset_names is not None:
-            output["dataset_names"] = dataset_names
-        return output
-
-@dataclass
-class PaddedCollatorForActionPrediction_Nav_lelan:
-    model_max_length: int
-    pad_token_id: int
-    padding_side: str = "right"
-    pixel_values_dtype: torch.dtype = torch.float32
-
-    def __call__(self, instances: Sequence[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
-        input_ids, labels = tuple([instance[key] for instance in instances] for key in ("input_ids", "labels"))
-        pixel_values = [instance["pixel_values"] for instance in instances]
-        if "dataset_name" in instances[0]:
-            dataset_names = [instance["dataset_name"] for instance in instances]
-        else:
-            dataset_names = None
-
-        # For now, we only support Tokenizers with `padding_side = "right"` during training
-        #   => Handle padding via RNN Utils => `pad_sequence`
-        assert self.padding_side == "right", f"Invalid Tokenizer `{self.padding_side = }`"
-        input_ids = pad_sequence(input_ids, batch_first=True, padding_value=self.pad_token_id)
-        labels = pad_sequence(labels, batch_first=True, padding_value=IGNORE_INDEX)
-
-        # Truncate (if necessary)
-        input_ids, labels = input_ids[:, : self.model_max_length], labels[:, : self.model_max_length]
-
-        # Get `attention_mask` by checking for `pad_token_id`
-        attention_mask = input_ids.ne(self.pad_token_id)
-
-        # [Contract] For VLA Training =>> No "Unimodal" Data!
-        assert all([pv is not None for pv in pixel_values]), "Invalid VLA Example with `pixel_values = None`!"
-
-        # Stack all `pixel_values` --> depending on type is torch.Tensor or Dict[str, torch.Tensor]
-        if isinstance(pixel_values[0], torch.Tensor):
-            if "pixel_values_wrist" in instances[0]:
-                pixel_values_wrist = [instance["pixel_values_wrist"] for instance in instances]
-                pixel_values = torch.cat((torch.stack(pixel_values), torch.stack(pixel_values_wrist)), dim=1)
-            else:
-                pixel_values = torch.stack(pixel_values)
-        else:
-            raise ValueError(f"Unsupported `pixel_values` type = {type(pixel_values)}")
-
-        # Stack all actions
-        actions = [torch.from_numpy(np.copy(instance["actions"])) for instance in instances]
-        actions = torch.stack(actions)
-
-        # Stack goal_pose
-        goal_pose = [torch.from_numpy(np.copy(instance["goal_pose"])) for instance in instances]
-        goal_pose = torch.stack(goal_pose)
-
-        # Stack obj_pose
-        obj_pose_norm = [torch.from_numpy(np.copy(instance["obj_pose_norm"])) for instance in instances]
-        obj_pose_norm = torch.stack(obj_pose_norm)
-        
-        # Stack proprio
-        if "proprio" in instances[0]:
-            proprio = [instance["proprio"] for instance in instances]
-            proprio = torch.Tensor(np.squeeze(np.stack(proprio)))
-        else:
-            proprio = None
-
-        output = dict(
-            pixel_values=pixel_values,
-            proprio=proprio,
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            labels=labels,
-            actions=actions,
-            goal_pose=goal_pose,
-            obj_pose_norm=obj_pose_norm,
-            #cur_image_crop=cur_image_crop,
-            #cur_image=cur_image,
-            #goal_image_crop=goal_image_crop,
-            #goal_image_8=goal_image_8,       
-            #temp_dist=temp_dist,     
-            img_PIL=[instance["img_PIL"] for instance in instances],
-            inst=[instance["inst"] for instance in instances]
+            gimg_PIL=[instance["gimg_PIL"] for instance in instances],
         )
         if dataset_names is not None:
             output["dataset_names"] = dataset_names
@@ -430,9 +207,9 @@ class PaddedCollatorForActionPrediction:
 
         # Stack all `pixel_values` --> depending on type is torch.Tensor or Dict[str, torch.Tensor]
         if isinstance(pixel_values[0], torch.Tensor):
-            if "pixel_values_wrist" in instances[0]:
-                pixel_values_wrist = [instance["pixel_values_wrist"] for instance in instances]
-                pixel_values = torch.cat((torch.stack(pixel_values), torch.stack(pixel_values_wrist)), dim=1)
+            if "pixel_values_goal" in instances[0]:
+                pixel_values_goal = [instance["pixel_values_goal"] for instance in instances]
+                pixel_values = torch.cat((torch.stack(pixel_values), torch.stack(pixel_values_goal)), dim=1)
             else:
                 pixel_values = torch.stack(pixel_values)
         else:

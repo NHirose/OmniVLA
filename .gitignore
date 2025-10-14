@@ -1,7 +1,11 @@
 omnivla-finetuned-cast/
 omnivla-original/
+MBRA/
+MBRA_BDD/
 OmniVLA.egg-info/
 prismatic/vla/datasets/sampler/
+visualization/
+runs/
 # Ignore all __pycache__ directories everywhere
 **/__pycache__/
 # Ignore all wandb directories everywhere

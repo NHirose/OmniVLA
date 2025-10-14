@@ -58,7 +58,11 @@ dependencies = [
     "imageio",
     "uvicorn",
     "fastapi",
-    "utm"
+    "utm",
+    "lmdb",
+    "zarr",
+    "datasets",
+    "efficientnet_pytorch"
 ]
 
 [project.optional-dependencies]

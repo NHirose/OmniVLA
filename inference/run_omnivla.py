@@ -36,7 +36,7 @@ from prismatic.extern.hf.configuration_prismatic import OpenVLAConfig
 from prismatic.extern.hf.processing_prismatic import PrismaticImageProcessor, PrismaticProcessor
 from prismatic.models.backbones.llm.prompting import PurePromptBuilder
 from prismatic.training.train_utils import get_current_action_mask, get_next_actions_mask
-from prismatic.vla.constants import ACTION_DIM, NUM_ACTIONS_CHUNK, PROPRIO_DIM, ACTION_PROPRIO_NORMALIZATION_TYPE
+from prismatic.vla.constants import ACTION_DIM, NUM_ACTIONS_CHUNK, POSE_DIM, ACTION_PROPRIO_NORMALIZATION_TYPE
 
 from transformers import AutoConfig, AutoProcessor, AutoModelForVision2Seq, AutoImageProcessor
 
@@ -153,7 +153,7 @@ class Inference:
         ])
 
         # Load current image
-        current_image_path = "./current_img.jpg"
+        current_image_path = "./inference/current_img.jpg"
         current_image_PIL = Image.open(current_image_path).convert("RGB")
 
         # Language instruction
@@ -241,7 +241,7 @@ class Inference:
         )
 
         print("linear angular", linear_vel_value_limit, angular_vel_value_limit)
-        return 0.0 * linear_vel_value_limit, 0.0 * angular_vel_value_limit
+        return linear_vel_value_limit, angular_vel_value_limit
 
     # ----------------------------
     # Save Robot Behavior Visualization
@@ -280,6 +280,9 @@ class Inference:
         else:                           
             ax_graph_pos.set_xlim(-3.0, 3.0)
             ax_graph_pos.set_ylim(-0.1, 10.0)
+        ax_graph_pos.set_xlim(-3.0, 3.0)
+        ax_graph_pos.set_ylim(-0.1, 10.0)
+                        
         ax_graph_pos.set_title("Normalized generated 2D trajectories from OmniVLA", fontsize=18)
         
         save_path = os.path.join(self.datastore_path_image, f"{self.count_id}_ex.jpg")
@@ -460,7 +463,6 @@ class Inference:
         text_hidden_states = last_hidden_states[:, num_patches:-1]
         # Get hidden states for action portion of response
         batch_size = batch["input_ids"].shape[0]
-        #print(last_hidden_states.size(), text_hidden_states.size(), current_action_mask.size(), current_action_mask.sum(), next_actions_mask.size(), next_actions_mask.sum(), ground_truth_token_ids.size())
         actions_hidden_states = (
             text_hidden_states[current_action_mask | next_actions_mask]
             .reshape(batch_size, NUM_ACTIONS_CHUNK * ACTION_DIM, -1)
@@ -479,9 +481,9 @@ class Inference:
 # ===============================================================
 class InferenceConfig:
     resume: bool = True
-    vla_path: str = "../omnivla-original"
+    vla_path: str = "./omnivla-original"
     resume_step: Optional[int] = 120000    
-    #vla_path: str = "../omnivla-finetuned-cast"    
+    #vla_path: str = "./omnivla-finetuned-cast"    
     #resume_step: Optional[int] = 210000
     use_l1_regression: bool = True
     use_diffusion: bool = False
@@ -504,7 +506,7 @@ def define_model(cfg: InferenceConfig) -> None:
         "Detected constants:\n"
         f"\tNUM_ACTIONS_CHUNK: {NUM_ACTIONS_CHUNK}\n"
         f"\tACTION_DIM: {ACTION_DIM}\n"
-        f"\tPROPRIO_DIM: {PROPRIO_DIM}\n"
+        f"\tPOSE_DIM: {POSE_DIM}\n"
         f"\tACTION_PROPRIO_NORMALIZATION_TYPE: {ACTION_PROPRIO_NORMALIZATION_TYPE}"
     )
 
@@ -530,7 +532,7 @@ def define_model(cfg: InferenceConfig) -> None:
         "pose_projector",
         cfg,
         device_id,
-        {"llm_dim": vla.llm_dim, "proprio_dim": PROPRIO_DIM},            
+        {"llm_dim": vla.llm_dim, "proprio_dim": POSE_DIM},            
     )
     
     if cfg.use_l1_regression:
@@ -559,15 +561,15 @@ if __name__ == "__main__":
     # select modality
     pose_goal = False
     satellite = False
-    image_goal = False
-    lan_prompt = True
+    image_goal = True
+    lan_prompt = False
 
     # Goal definitions
     lan_inst_prompt = "move toward blue trash bin"
     goal_lat, goal_lon, goal_compass = 37.8738930785863, -122.26746181032362, 0.0
     goal_utm = utm.from_latlon(goal_lat, goal_lon)
     goal_compass = -float(goal_compass) / 180.0 * math.pi
-    goal_image_PIL = Image.open("./goal_img.jpg").convert("RGB")
+    goal_image_PIL = Image.open("./inference/goal_img.jpg").convert("RGB")
 
     # Define models (VLA, action_head, pose_projector, processor, etc.)
     cfg = InferenceConfig()
@@ -575,7 +577,7 @@ if __name__ == "__main__":
 
     # Run inference
     inference = Inference(
-        save_dir=".",
+        save_dir="./inference",
         lan_inst_prompt=lan_inst_prompt,
         goal_utm=goal_utm,
         goal_compass=goal_compass,
