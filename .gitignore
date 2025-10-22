@@ -9,9 +9,9 @@ prismatic/vla/datasets/cast_dataset_.py
 prismatic/vla/datasets/lelan_dataset_.py
 prismatic/vla/datasets/gnm_dataset_.py
 prismatic/vla/datasets/frodobots_dataset_.py
-vla_scripts/train_omnivla_dataset_.py
-vla_scripts/train_omnivla_dataset__.py
-vla_scripts/finetune_nav_MMN_dataset_cast2.py
+vla-scripts/train_omnivla_dataset_.py
+vla-scripts/train_omnivla_dataset__.py
+vla-scripts/finetune_nav_MMN_dataset_cast2.py
 config_nav/mbra_and_dataset_config_.yaml
 visualization/
 runs/

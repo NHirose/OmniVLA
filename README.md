@@ -70,8 +70,8 @@ We provide training code that supports multiple public datasets. Before followin
     ```
     git clone https://github.com/huggingface/lerobot.git 
     ```
-    
-    
+4. Edit the data path in config_nav/mbra_and_dataset_config.yaml:
+
 5. Training our policy from OpenVLA checkpoints (Please fill X):
     ```
     torchrun --standalone --nnodes 1 --nproc-per-node X vla-scripts/train_omnivla_dataset.py  --vla_path ./omnivla-original --dataset_name omnivla --wandb_entity "X"   --wandb_project "omnivla"
