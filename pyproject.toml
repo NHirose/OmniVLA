@@ -62,7 +62,8 @@ dependencies = [
     "lmdb",
     "zarr",
     "datasets",
-    "efficientnet_pytorch"
+    "efficientnet_pytorch",
+    "av"
 ]
 
 [project.optional-dependencies]

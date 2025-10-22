@@ -108,6 +108,11 @@ class PaddedCollatorForActionPrediction_Nav_MMN:
         else:
             dataset_names = None
 
+        if "lan_prompt" in instances[0]:
+            lan_prompts = [instance["lan_prompt"] for instance in instances]
+        else:
+            lan_prompts = None
+
         # [Contract] For VLA Training =>> No "Unimodal" Data!
         assert all([pv is not None for pv in pixel_values]), "Invalid VLA Example with `pixel_values = None`!"
 
@@ -173,6 +178,9 @@ class PaddedCollatorForActionPrediction_Nav_MMN:
         )
         if dataset_names is not None:
             output["dataset_names"] = dataset_names
+        if lan_prompts is not None:
+            output["lan_prompts"] = lan_prompts
+                        
         return output
         
 @dataclass

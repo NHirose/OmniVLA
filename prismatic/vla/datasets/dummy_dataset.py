@@ -161,7 +161,10 @@ class Dummy_Dataset(Dataset):
             actions[:,1] = -actions[:,1]
             actions[:,3] = -actions[:,3]
             goal_pose_cos_sin[1] = -goal_pose_cos_sin[1]
-            goal_pose_cos_sin[3] = -goal_pose_cos_sin[3]            
+            goal_pose_cos_sin[3] = -goal_pose_cos_sin[3]  
+            
+            image_obs = torch.flip(image_obs, dims=[2])
+            image_goal = torch.flip(image_goal, dims=[2])  
                            
         pixel_values_current = self.image_transform(current_image_PIL)
         pixel_values_goal = self.image_transform(goal_image_PIL)   

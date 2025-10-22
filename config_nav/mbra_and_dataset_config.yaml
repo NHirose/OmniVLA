@@ -1,0 +1,143 @@
+# parameters for MBRA
+context_size: 5 #history of image
+len_traj_pred: 8 #action length
+learn_angle: True
+obs_encoder: efficientnet-b0
+obs_encoding_size: 1024
+late_fusion: False
+mha_num_attention_heads: 4
+mha_num_attention_layers: 4
+mha_ff_dim_factor: 4
+
+# parameters for training dataset
+image_size: [96, 96] # width, height
+context_type: temporal
+normalize: True
+num_workers: 10
+
+#For dataset path and setting
+datasets_CAST:
+  path: /your_cast_data_location/
+
+datasets_frodobots:
+  root: /your_frodobots_data_location
+  horizon_short: 20
+  horizon_long: 100  
+  frodobot:
+    train: 11434305
+    test: 11434305
+    negative_mining: True
+
+datasets_bdd:    
+  train: /your_data_location/data_splits/bdd/train/
+  test: /your_data_location/data_splits/bdd/test/
+  image: /your_bdd_data_location/BDD_dataset
+  pickle: /your_bdd_data_location/BDD_dataset_pickle
+  backside: False
+  aug_seq: False
+  only_front: True
+  waypoint_spacing: 0.12      
+    
+datasets_gnm:
+  distance:
+    min_dist_cat: 0
+    max_dist_cat: 20
+  action:
+    min_dist_cat: 3
+    max_dist_cat: 20
+    
+  recon:
+    data_folder: /your_gnm_data_location/recon
+    train: /your_data_location/data_splits/recon/train/
+    test: /your_data_location/data_splits/recon/test/
+    end_slack: 3
+    goals_per_obs: 1
+    negative_mining: True # negative mining from the ViNG paper (Shah et al.)
+  go_stanford:
+    data_folder: /your_gnm_data_location/go_stanford # datasets/stanford_go_new
+    train: /your_data_location/data_splits/go_stanford/train/
+    test: /your_data_location/data_splits/go_stanford/test/
+    end_slack: 0
+    goals_per_obs: 2
+    negative_mining: True
+  cory_hall:
+    data_folder: /your_gnm_data_location/cory_hall
+    train: /your_data_location/data_splits/cory_hall/train/
+    test: /your_data_location/data_splits/cory_hall/test/
+    end_slack: 3
+    goals_per_obs: 1
+    negative_mining: True
+  tartan_drive:
+    data_folder: /your_gnm_data_location/tartan_drive
+    train: /your_data_location/data_splits/tartan_drive/train/
+    test: /your_data_location/data_splits/tartan_drive/test/
+    end_slack: 3
+    goals_per_obs: 1
+    negative_mining: True
+  sacson:
+    data_folder: /your_gnm_data_location/sacson
+    train: /your_data_location/data_splits/sacson/train/
+    test: /your_data_location/data_splits/sacson/test/
+    end_slack: 3
+    goals_per_obs: 1
+    negative_mining: True
+  seattle:
+    data_folder: /your_gnm_data_location/seattle/
+    train: /your_data_location/data_splits/seattle/train/
+    test: /your_data_location/data_splits/seattle/test/
+    end_slack: 0
+    goals_per_obs: 1
+    negative_mining: True
+  scand:
+    data_folder: /your_gnm_data_location/scand/
+    train: /your_data_location/data_splits/scand/train/
+    test: /your_data_location/data_splits/scand/test/
+    end_slack: 0
+    goals_per_obs: 1
+    negative_mining: True
+
+datasets_lelan:  
+  go_stanford4:
+    train: /your_data_location/data_splits/lelan_gs4/train/
+    test: /your_data_location/data_splits/lelan_gs4/test/
+    image: /your_lelan_data_location/dataset_LeLaN_gs4/image/
+    pickle: /your_lelan_data_location/dataset_LeLaN_gs4/pickle_nomad/
+    backside: False
+    aug_seq: False
+    only_front: False
+            
+  sacson:
+    train: /your_data_location/data_splits/lelan_sacson/train/
+    test: /your_data_location/data_splits/lelan_sacson/test/
+    image: /your_lelan_data_location/dataset_LeLaN_sacson/
+    pickle: /your_lelan_data_location/dataset_LeLaN_sacson/
+    backside: False
+    aug_seq: False
+    only_front: False
+            
+  go_stanford2:
+    train: /your_data_location/data_splits/lelan_gs2/train/
+    test: /your_data_location/data_splits/lelan_gs2/test/
+    image: /your_lelan_data_location/dataset_LeLaN_gs2/
+    pickle: /your_lelan_data_location/dataset_LeLaN_gs2/
+    backside: False
+    aug_seq: False
+    only_front: False
+
+  humanw:
+    train: /your_data_location/data_splits/lelan_humanw/train/
+    test: /your_data_location/data_splits/lelan_humanw/test/
+    image: /your_lelan_data_location/dataset_LeLaN_humanwalk/
+    pickle: /your_lelan_data_location/dataset_LeLaN_humanwalk/    
+    backside: False
+    aug_seq: False 
+    only_front: True   
+
+  youtube:
+    train: /your_data_location/data_splits/lelan_youtube/train/
+    test: /your_data_location/data_splits/lelan_youtube/test/
+    image: /your_lelan_data_location/dataset_LeLaN_youtube/
+    pickle: /your_data_location/pickle_youtube/        
+    backside: False
+    aug_seq: False 
+    only_front: True  
