@@ -13,6 +13,8 @@ vla-scripts/train_omnivla_dataset_.py
 vla-scripts/train_omnivla_dataset__.py
 vla-scripts/finetune_nav_MMN_dataset_cast2.py
 config_nav/mbra_and_dataset_config_.yaml
+config_nav/mbra_and_dataset_config_bellman.yaml
+config_nav/base_server_bellman.yaml
 visualization/
 runs/
 # Ignore all __pycache__ directories everywhere

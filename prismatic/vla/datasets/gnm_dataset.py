@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple, Type, Union
 import tqdm
 import io
 import random
+import lmdb
 
 import torch
 from torch.utils.data import Dataset
@@ -138,14 +139,15 @@ class GNM_Dataset(Dataset):
         self.__dict__ = state
         self._build_caches()
 
+
     def _build_caches(self, use_tqdm: bool = True):
         cache_filename = os.path.join(self.data_split_folder, f"dataset_{self.dataset_name}.lmdb")
         for traj_name in self.traj_names:
             self._get_trajectory(traj_name)
-        # LMDB caching
+        # build the LMDB file if missing (write once)
         if not os.path.exists(cache_filename):
             tqdm_iterator = tqdm.tqdm(self.goals_index, disable=not use_tqdm, dynamic_ncols=True,
-                                      desc=f"Building LMDB cache for {self.dataset_name}")
+                                  desc=f"Building LMDB cache for {self.dataset_name}")
             import lmdb
             with lmdb.open(cache_filename, map_size=2**40) as image_cache:
                 with image_cache.begin(write=True) as txn:
@@ -153,8 +155,10 @@ class GNM_Dataset(Dataset):
                         image_path = get_data_path(self.data_folder, traj_name, time)
                         with open(image_path, "rb") as f:
                             txn.put(image_path.encode(), f.read())
-        import lmdb
-        self._image_cache: lmdb.Environment = lmdb.open(cache_filename, readonly=True, max_readers=2048)
+
+        # DO NOT open the env here — only store the path
+        self._image_cache_path = cache_filename
+        self._image_cache = None
 
     def _build_index(self, use_tqdm: bool = False):
         samples_index, goals_index = [], []
@@ -195,14 +199,32 @@ class GNM_Dataset(Dataset):
             with open(index_to_data_path, "wb") as f:
                 pickle.dump((self.index_to_data, self.goals_index), f)
 
+    def _get_image_cache(self):
+        # Opens LMDB lazily. When called inside a worker, this creates a worker-local env.
+        if self._image_cache is None:
+            self._image_cache = lmdb.open(
+                self._image_cache_path,
+                readonly=True,
+                lock=False,
+                readahead=False,
+                max_readers=2048
+            )
+        return self._image_cache
+
     def _load_image(self, trajectory_name, time):
         image_path = get_data_path(self.data_folder, trajectory_name, time)
         try:
-            with self._image_cache.begin() as txn:
-                image_bytes = io.BytesIO(bytes(txn.get(image_path.encode())))
-                return img_path_to_data(image_bytes, self.image_size)
-        except TypeError:
-            print(f"Failed to load image {image_path}")
+            env = self._get_image_cache()
+            with env.begin() as txn:
+                buf = txn.get(image_path.encode())
+            if buf is None:
+                # handle missing key gracefully
+                print(f"LMDB missing key {image_path}")
+                return None
+            return img_path_to_data(io.BytesIO(buf), self.image_size)
+        except Exception as e:
+            print(f"Failed to load image {image_path}: {e}")
+            return None
 
     def _compute_actions(self, traj_data, curr_time, goal_time):
         start_index = curr_time
