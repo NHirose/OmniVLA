@@ -111,62 +111,115 @@ class LeLaN_Dataset(Dataset):
     # Dataset loading / caching
     # ----------------------------------------
     def _load_split_index(self):
-        """Load image and pickle paths for the current dataset split."""
-        # Dataset-specific config
-        dataset_config = {
-            "go_stanford4": {"v_random": 0.2, "h_random": 0.1, "test_seq": None, "offset": -5},
-            "sacson": {"v_random": 0.2, "h_random": 0.1, "test_seq": None},
-            "go_stanford2": {"v_random": 0.2, "h_random": 0.1, "test_ratio": 0.1},
-            "humanw": {"v_random": 0.2, "h_random": 0.1, "test_seq": ["R0010096","R0010098","R0010121","R0010118","R0010133","R0010145","R0010156","R0010166","R0010175","R0010180","R0010188","R0010197"]},
-            "youtube": {"v_random": 0.05, "h_random": 0.05, "test_seq": ["home_10","home_12","austra_1","spain_1","singa_1","spain_3","spain_5","rosia_2","home_33","poland_1","uk_5"]}
-        }
-        cfg = dataset_config[self.dataset_name]
-        self.v_random = cfg.get("v_random", 0.2)
-        self.h_random = cfg.get("h_random", 0.1)
+        if self.dataset_name == "go_stanford4":
+            self.v_random = 0.2 #for random cropping
+            self.h_random = 0.1 #for random cropping
+            
+            lst = os.listdir(self.data_image_folder + "image/") # your directory path
+            number_files = len(lst)
+            
+            image_path = []
+            pickle_path = []  
+            
+            ratio = 0.9
+            thres = int(number_files*ratio)        
+             
+            #TODO -5 is come from "self.data_image_folder" includes 5 files, which is not pickle file.
+            for num in range(int(number_files - 5)-3):
+                if self.data_split_type == "train" and num < thres:
+                    image_path.append(self.data_image_folder + "image/" + str(num).zfill(8) + '.jpg')
+                    pickle_path.append(self.data_pickle_folder + "pickle_nomad/" + str(num).zfill(8) + '.pkl')                               
+                elif self.data_split_type == "test" and num >= thres:
+                    image_path.append(self.data_image_folder + "image/" + str(num).zfill(8) + '.jpg')
+                    pickle_path.append(self.data_pickle_folder + "pickle_nomad/" + str(num).zfill(8) + '.pkl')                                     
+      
+        if self.dataset_name == "sacson":
+            self.v_random = 0.2 #for random cropping
+            self.h_random = 0.1 #for random cropping 
+                        
+            image_path = []
+            pickle_path = []   
+                                     
+            folder_lst = next(os.walk(self.data_pickle_folder))[1]
 
-        image_path, pickle_path = [], []
-
-        if self.dataset_name in ["go_stanford4", "go_stanford2"]:
-            all_files = sorted(os.listdir(self.data_image_folder))
-            if self.dataset_name == "go_stanford4":
-                ratio = 0.9
-                num_files = len(all_files)
-                thres = int(num_files * ratio)
-                file_range = range(int(num_files + cfg.get("offset", 0)) - 3)
-                for num in file_range:
-                    if (self.data_split_type == "train" and num < thres) or (self.data_split_type == "test" and num >= thres):
-                        image_path.append(f"{self.data_image_folder}{str(num).zfill(8)}.jpg")
-                        pickle_path.append(f"{self.data_pickle_folder}{str(num).zfill(8)}.pkl")
-            else:  # go_stanford2
-                num_test = int(cfg.get("test_ratio", 0.1) * len(all_files))
-                if self.data_split_type == "train":
-                    files = all_files[:-num_test]
-                else:
-                    files = all_files[-num_test:]
-                for folder in files:
-                    n_files = len(os.listdir(os.path.join(self.data_image_folder, folder, "image")))
-                    for num in range(n_files - 3):
-                        image_path.append(os.path.join(self.data_image_folder, folder, "image", f"{str(num).zfill(8)}.jpg"))
-                        pickle_path.append(os.path.join(self.data_pickle_folder, folder, "pickle_nomad", f"{str(num).zfill(8)}.pkl"))
-
-        else:  # sacson, humanw, youtube
-            folders = next(os.walk(self.data_pickle_folder))[1]
-            test_seq = cfg.get("test_seq", [])
             if self.data_split_type == "train":
-                folders = [f for f in folders if f not in test_seq]
+                folder_lst_dataset = folder_lst[0:len(folder_lst)-1]
             else:
-                folders = test_seq
+                folder_lst_dataset = folder_lst[len(folder_lst)-1:len(folder_lst)]
+                                
+            for folder in folder_lst_dataset:
+                subfolder_lst = os.listdir(self.data_pickle_folder + folder + "/")                                    
+                for subfolder in subfolder_lst:
+                    file_lst = os.listdir(self.data_image_folder + folder + "/" + subfolder + "/image/")
+                    number_files = len(file_lst)
+                    for num in range(int(number_files)-3):
+                        image_path.append(self.data_image_folder + folder + "/" + subfolder + "/image/" + str(num).zfill(8) + '.jpg')
+                        pickle_path.append(self.data_pickle_folder + folder + "/" + subfolder + "/pickle_nomad/" + str(num).zfill(8) + '.pkl')                        
 
-            for folder in folders:
-                subfolders = [folder] if self.dataset_name != "sacson" else os.listdir(os.path.join(self.data_pickle_folder, folder))
-                for subfolder in subfolders:
-                    img_dir = os.path.join(self.data_image_folder, folder, subfolder, "image") if self.dataset_name == "sacson" else os.path.join(self.data_image_folder, folder, "image")
-                    pkl_dir = os.path.join(self.data_pickle_folder, folder, subfolder, "pickle_nomad") if self.dataset_name == "sacson" else os.path.join(self.data_pickle_folder, folder, "pickle_nomad")
-                    n_files = len(os.listdir(img_dir))
-                    for num in range(n_files - 3):
-                        image_path.append(os.path.join(img_dir, f"{str(num).zfill(8)}.jpg"))
-                        pickle_path.append(os.path.join(pkl_dir, f"{str(num).zfill(8)}.pkl"))
+        if self.dataset_name == "go_stanford2":
+            self.v_random = 0.2 #for random cropping
+            self.h_random = 0.1 #for random cropping 
+                        
+            image_path = []
+            pickle_path = [] 
+                                     
+            folder_lst = next(os.walk(self.data_pickle_folder))[1]
+            num_test = int(0.1*len(folder_lst))
+            
+            if self.data_split_type == "train":
+                folder_lst_dataset = folder_lst[0:len(folder_lst)-num_test]
+            else:
+                folder_lst_dataset = folder_lst[len(folder_lst)-num_test:len(folder_lst)]
+            
+            for folder in folder_lst_dataset:
+                file_lst = os.listdir(self.data_image_folder + folder + "/image/")
+                number_files = len(file_lst)
+                for num in range(int(number_files-3)):
+                    image_path.append(self.data_image_folder + folder + "/image/" + str(num).zfill(8) + '.jpg')
+                    pickle_path.append(self.data_pickle_folder + folder + "/pickle_nomad/" + str(num).zfill(8) + '.pkl')                               
 
+        if self.dataset_name == "humanw":
+            self.v_random = 0.2 #for random cropping
+            self.h_random = 0.1 #for random cropping 
+                    
+            image_path = []
+            pickle_path = []                                     
+            folder_lst = next(os.walk(self.data_pickle_folder))[1]            
+            test_folder = ["R0010096", "R0010098","R0010121", "R0010118","R0010133", "R0010145", "R0010156", "R0010166", "R0010175","R0010180", "R0010188", "R0010197"]
+            
+            if self.data_split_type == "train":
+                folder_lst_dataset = self._remove_values_from_list(folder_lst, test_folder)
+            else:
+                folder_lst_dataset = test_folder
+            
+            for folder in folder_lst_dataset:
+                file_lst = os.listdir(self.data_image_folder + folder + "/image/")
+                number_files = len(file_lst)
+                for num in range(int(number_files)):
+                    image_path.append(self.data_image_folder + folder + "/image/" + str(num).zfill(8) + '.jpg')
+                    pickle_path.append(self.data_pickle_folder + folder + "/pickle_nomad/" + str(num).zfill(8) + '.pkl')                         
+
+        if self.dataset_name == "youtube":
+            self.v_random = 0.05 #for random cropping
+            self.h_random = 0.05 #for random cropping 
+                    
+            image_path = []
+            pickle_path = []                                       
+            folder_lst = next(os.walk(self.data_pickle_folder))[1]
+            test_folder = ["home_10", "home_12", "austra_1", "spain_1", "singa_1", "spain_3", "spain_5", "rosia_2", "home_33", "poland_1", "uk_5"]
+              
+            if self.data_split_type == "train":
+                folder_lst_dataset = self._remove_values_from_list(folder_lst, test_folder)          
+            else:
+                folder_lst_dataset = test_folder  
+            
+            for folder in folder_lst_dataset:
+                file_lst = os.listdir(self.data_image_folder + folder + "/image/")
+                number_files = len(file_lst)
+                for num in range(int(number_files)):
+                    image_path.append(self.data_image_folder + folder + "/image/" + str(num).zfill(8) + '.jpg')
+                    pickle_path.append(self.data_pickle_folder + folder + "/pickle_nomad/" + str(num).zfill(8) + '.pkl')                        
+          
         self.image_path = image_path
         self.pickle_path = pickle_path
 
@@ -292,10 +345,10 @@ class LeLaN_Dataset(Dataset):
                     nomad_traj_norm = pickle_values[ir]["nomad_traj_norm"] #normalized pose on robot coordinate
                     ii = random.randint(0, len(pickle_values[ir]["prompt"])-1)
                     inst_obj = pickle_values[ir]["prompt"][ii]
-                    inst_obj_x = inst_obj[0]                
+                    inst_obj_x = inst_obj[0]             
                     if isinstance(inst_obj_x, str):
                         flag_data = 1
-                    else:
+                    else:     
                         iv = random.randint(0, len(self.image_path)-1)                                        
                 except:
                     iv = random.randint(0, len(self.image_path)-1)
@@ -408,6 +461,7 @@ class LeLaN_Dataset(Dataset):
                 lang = "move toward " + "XXXXX"
             except:
                 print(inst_obj_x) 
+                  
             conversation = [
                 {"from": "human", "value": f"What action should the robot take to {lang}?"},
                 {"from": "gpt", "value": action_chunk_string},
@@ -461,4 +515,3 @@ class LeLaN_Dataset(Dataset):
             temp_dist=goal_id,
             lan_prompt=lang
         )  
-

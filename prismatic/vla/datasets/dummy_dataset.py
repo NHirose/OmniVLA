@@ -189,5 +189,6 @@ class Dummy_Dataset(Dataset):
             cur_image=image_obs,                    #History of image for MBRA
             goal_image_8=image_goal,                #Goal image (8 step future) for MBRA
             temp_dist=10.0,                         #Temporal distance (We are not using in our training)
+            lan_prompt=inst_obj            
         )      
 

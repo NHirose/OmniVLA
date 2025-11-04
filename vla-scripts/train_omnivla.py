@@ -453,6 +453,27 @@ def run_forward_pass(
     # Return both the loss tensor (with gradients) and the metrics dictionary (with detached values)
     return loss, metrics
 
+def compute_smoothened_metrics(metrics_deques) -> dict:
+    """
+    Compute smoothened metrics from recent deques.
+
+    Args:
+        metrics_deques (dict): Dictionary of deques containing recent metrics.
+
+    Returns:
+        dict: Dictionary of smoothened metrics.
+    """
+    smoothened_metrics = {}
+    for name, deque in metrics_deques.items():
+        if deque and len(deque) > 0:
+            #smoothened_metrics[name] = sum(deque) / len(deque)
+            valid_values = [x for x in deque if not math.isnan(x)]
+            if len(valid_values) == 0:
+                smoothened_metrics[name] = math.nan
+            else:
+                smoothened_metrics[name] = sum(valid_values) / len(valid_values)
+            
+    return smoothened_metrics
 
 def log_metrics_to_wandb(metrics, prefix, step, wandb_entity) -> None:
     """
@@ -1027,6 +1048,10 @@ def train_omnivla(cfg: OmniVLAConfig) -> None:
 
                 # Push Metrics to W&B (every wandb_log_freq gradient steps)
                 log_step = gradient_step_idx if not cfg.resume else cfg.resume_step + gradient_step_idx
+
+                smoothened_metrics = compute_smoothened_metrics(recent_metrics)
+                if distributed_state.is_main_process and log_step % cfg.wandb_log_freq == 0:
+                    log_metrics_to_wandb(smoothened_metrics, "VLA Train", log_step, wandb)
 
                 # [If applicable] Linearly warm up learning rate from 10% to 100% of original
                 if cfg.lr_warmup_steps > 0:
