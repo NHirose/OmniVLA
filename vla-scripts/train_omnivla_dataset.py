@@ -801,9 +801,12 @@ def train_omnivla(cfg: OmniVLAConfig) -> None:
     if cfg.vla_path == "openvla/openvla-7b": #from OpenVLA checkpoints
         cfg.resume = False
         cfg.resume_step = None
-    elif cfg.vla_path == "./omnivla-original": #from OmniVLA checkpoints
+    elif cfg.vla_path == "./omnivla-original": #from OmniVLA checkpoints (paper version)
         cfg.resume = True     
         cfg.resume_step = 120000 
+    elif cfg.vla_path == "./omnivla-original-balance": #from OmniVLA checkpoints (fix LeLaN data unbalance)
+        cfg.resume = True     
+        cfg.resume_step = 285000         
     elif cfg.vla_path == "./omnivla-finetuned-cast": #from OmniVLA checkpoints fituned with CAST dataset 
         cfg.resume = True      
         cfg.resume_step = 210000 
