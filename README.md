@@ -12,9 +12,10 @@
 Please set up a conda environment (see instructions in [SETUP.md](SETUP.md)).
 
 ### Inference
-1. Download our checkpoints and place them in our directory. "omnivla-original" is the trained checkpoints of the OmniVLA. And "omnivla-finetuned-cast" is finetuned checkpoints with the [CAST](https://huggingface.co/datasets/catglossop/CAST-dataset) dataset.
+1. Download our checkpoints and place them in our directory. "omnivla-original" is the trained checkpoints of the OmniVLA for paper submission. "omnivla-original-balance" contains the trained checkpoints of OmniVLA that account for the data balance in the LeLaN dataset. And "omnivla-finetuned-cast" is finetuned checkpoints with the [CAST](https://huggingface.co/datasets/catglossop/CAST-dataset) dataset.
     ```
     git clone https://huggingface.co/NHirose/omnivla-original
+    git clone https://huggingface.co/NHirose/omnivla-original-balance    
     git clone https://huggingface.co/NHirose/omnivla-finetuned-cast
     ```
 2. Run OmniVLA using a sample current image, goal images, GPS pose, and language prompt. You can view the generated trajectory in the output figure 1_ex.jpg.
