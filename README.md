@@ -63,8 +63,8 @@ We provide the training code along with a sample dataloader to help you quickly 
 ### Training with GNM, LeLaN, Frodobots, BDD and CAST datasets
 We provide training code that supports multiple public datasets. Before following the full training process, please first ensure that you can run the example training with the sample dataloader.
 
-1. Downloading all datasets from the original website. ([GNM](https://github.com/robodhruv/visualnav-transformer), [LeLaN](https://github.com/NHirose/learning-language-navigation), [Frodobots](https://github.com/NHirose/Learning-to-Drive-Anywhere-with-MBRA), [CAST](https://openvla-oft.github.io/)) Please verify that the downloaded datasets work properly in their original codebase, except BDD dataset.
-
+1. Downloading all datasets from the original website. ([GNM](https://github.com/robodhruv/visualnav-transformer), [LeLaN](https://github.com/NHirose/learning-language-navigation), [Frodobots](https://github.com/NHirose/Learning-to-Drive-Anywhere-with-MBRA), [CAST](https://openvla-oft.github.io/)) Please verify that the downloaded datasets work properly in their original codebase, except BDD dataset. Note that please download the LeLaN dataset from [this link](https://huggingface.co/datasets/NHirose/LeLaN_dataset_NoMaD_traj/tree/main) instead of [the original link](https://drive.google.com/file/d/1IazHcIyPGO7ENswz8_sGCIGBXF8_sZJK/view). The updated dataset already includes the NoMaD trajectories used for collision-avoidance supervision, you no longer need to compute the NoMaD policy during training. Please carefully follow the usage procedure described in the [LeLaN codebase](https://github.com/NHirose/learning-language-navigation) when working with the dataset.
+ 
 2. Downloading the modified BDD dataset with MBRA annotations from [here](https://huggingface.co/datasets/NHirose/BDD_OmniVLA) and extract it. The image sequences in the modified dataset remain subject to the [original BDD license](http://bdd-data.berkeley.edu/download.html), while the additional MBRA annotations are released under the MIT license.
 
 3. Downloading the lerobot code base for the Frodobots dataset dataloader:
