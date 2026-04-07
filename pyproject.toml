@@ -63,7 +63,7 @@ dependencies = [
     "zarr",
     "datasets",
     "efficientnet_pytorch",
-    "av"
+    "av",
     "openai-clip"
 ]
 
